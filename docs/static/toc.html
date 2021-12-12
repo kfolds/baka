@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>baka</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="header">
+        <div class="inner">
+        <h1>baka</h1>
+        </div>
+    </div>
+    <div id="content">
+        <div class="inner">
+        <p>a programming language uwu</p>
+        <p>designed for simplicity, robustness, and fun.</p>
+        <p>track the progress of the language's design and compiler implementation in the articles below:</p>
+    <div id="toc">
+    {% for item in toc %}
+    <div class="article-ref">
+        <a href="{{ item.url }}">{{ item.title }}</a>
+        {% if item.desc is defined %}: {{ item.desc }}{% endif %}
+    </div>
+    {% endfor %}
+    </div>
+    </div>
+    </div>
+</body>
+</html>

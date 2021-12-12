@@ -1,0 +1,5 @@
+{
+    "CONTENT_PATH": "content",
+    "PUBLIC_PATH": ".",
+    "TEMPLATE_PATH": "static"
+}
