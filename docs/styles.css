@@ -1,0 +1,43 @@
+#content {
+    margin: 1.5rem 1rem 0 1rem;
+}
+
+#article {
+
+}
+
+#article #title {
+    line-height: 0.2rem;
+    margin: 0 0 2rem 0;
+}
+
+#header {
+    color: rgb(22, 24, 33);
+    background-color: rgb(210, 212, 222);
+    line-height: 0.4rem;
+    margin: 0;
+    padding: 0.01rem 1rem;
+}
+
+body {
+    background-color: rgb(22, 24, 33);
+    color: rgb(210, 212, 222);
+    font-family: monospace;
+    margin: 0 auto;
+    padding: 0;
+}
+
+#footer {
+    border-top: solid 1px #aaa;
+    margin: 2rem 0 0 0;
+    padding: 0 1rem;
+}
+
+a {
+    color: rgb(149, 196, 206);
+}
+
+.inner {
+    margin: 0 auto;
+    max-width: 560px;
+}
