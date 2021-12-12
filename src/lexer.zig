@@ -41,6 +41,7 @@ pub const TokenId = enum(u16) {
     kwd_false,
     kwd_and,
     kwd_or,
+    kwd_error,
 
     op_assign,
     op_add,
@@ -573,7 +574,7 @@ pub fn tokenize(allocator: *Allocator, src: [:0]const u8) ![]Token {
 
     log.debug("tokens:", .{});
     for (tokens.items) |t| {
-        log.debug("{?}\n", .{t});
+        log.debug("{?}", .{t});
     }
 
     return tokens.toOwnedSlice();
