@@ -2,6 +2,9 @@
 <html>
 <head>
 <title>baka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@500&family=Karla:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -12,18 +15,21 @@
     </div>
     <div id="content">
         <div class="inner">
-        <p>a programming language uwu</p>
-        <p>designed for simplicity, robustness, and fun.</p>
-        <p>track the progress of the language's design and compiler implementation in the articles below:</p>
-    <div id="toc">
-    {% for item in toc %}
-    <div class="article-ref">
-        <a href="{{ item.url }}">{{ item.title }}</a>
-        {% if item.desc is defined %}: {{ item.desc }}{% endif %}
-    </div>
-    {% endfor %}
-    </div>
-    </div>
+            <h2>a programming language uwu~</h2>
+<pre><code>std :: @import("std");
+
+main :: () {
+    std.print("hello :3\n");
+}</code></pre>
+            <p>designed for simplicity, robustness, and fun.</p>
+            <div id="toc">
+                {% for item in toc %}
+                <div class="article-ref">
+                    <a href="{{ item.url }}">{{ item.title }}</a>{% if item.desc is defined %}: {{ item.desc }}{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </body>
 </html>
