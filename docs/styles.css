@@ -29,11 +29,6 @@ pre {
     color: rgb(210, 212, 222);
 }
 
-#header h1, h2, h3, h4, h5, h6, p {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
 #content {
 
 }
@@ -48,7 +43,20 @@ pre {
     padding: 1.5rem 0;
 }
 
-#content #title p, h1, h2, h3, h4, h5, h6 {
+#header h1,
+#header h2,
+#header h3,
+#header h4,
+#header h5,
+#header h6,
+#header p,
+#content #title p,
+#content #title h1,
+#content #title h2,
+#content #title h3,
+#content #title h4,
+#content #title h5,
+#content #title h6 {
     margin-top: 0;
     margin-bottom: 0;
 }
