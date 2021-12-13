@@ -10,24 +10,33 @@
 <body>
     <div id="header">
         <div class="inner">
-        <h1>baka</h1>
+        <h1><a href="/">baka</a></h1>
         </div>
     </div>
     <div id="content">
-        <div class="inner">
-            <h2>a programming language uwu~</h2>
+        <div id="title">
+            <div class="inner">
+                <h2>a programming language uwu~</h2>
 <pre><code>std :: @import("std");
 
 main :: () {
     std.print("hello :3\n");
 }</code></pre>
-            <p>designed for simplicity, robustness, and fun.</p>
-            <div id="toc">
-                {% for item in toc %}
-                <div class="article-ref">
-                    <a href="{{ item.url }}">{{ item.title }}</a>{% if item.desc is defined %}: {{ item.desc }}{% endif %}
-                </div>
-                {% endfor %}
+                <small><p>designed for simplicity, robustness, and fun.</p></small>
+            </div>
+        </div>
+
+        <div id="toc">
+            <div class="inner">
+            {% if toc is defined %}
+            {% for item in toc %}
+            <div class="article-ref">
+                <a href="{{ item.url }}">{{ item.title }}</a>{% if item.desc is defined %}: {{ item.desc }}{% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p>no posts yet; check back later.</p>
+            {% endif %}
             </div>
         </div>
     </div>

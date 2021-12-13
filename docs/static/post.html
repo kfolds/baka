@@ -10,18 +10,20 @@
 <body>
     <div id="header">
         <div class="inner">
-        <h1>baka</h1>
+        <h1><a href="/">baka</a></h1>
         </div>
     </div>
     <div id="content">
-        <div class="inner">
-        <div id="article">
         <div id="title">
-        <h1>{{ doc.title }}</h1>
-        <p><small>{{ doc.desc }}</small></p>
+            <div class="inner">
+                <h1>{{ doc.title }}</h1>
+                <p><small>{{ doc.desc }}</small></p>
+            </div>
         </div>
-        {{ doc.html }}
-        </div>
+        <div id="article">
+            <div class="inner">
+            {{ doc.html }}
+            </div>
         </div>
     </div>
     <div id="footer">
