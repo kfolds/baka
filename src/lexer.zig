@@ -333,8 +333,10 @@ fn match_identifier_chars(src: [:0]const u8, pos: usize) bool {
     return (std.ascii.isAlNum(src[pos]) or src[pos] == '_');
 }
 
+/// match literally any kind of numeric literal
+/// 
 /// TODO(mia): this is so ugly
-fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
+fn match_numeric_literal(src: [:0]const u8, pos: usize) !?Token {
     const has_next = pos + 1 < src.len;
     if ((!std.ascii.isDigit(src[pos]) and src[pos] != '.') or (has_next and src[pos] == '.' and !std.ascii.isDigit(src[pos + 1]))) {
         return null;
@@ -346,11 +348,14 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
         const next_c = src[pos + 1];
         if (c == '.' and std.ascii.isDigit(next_c)) {
             // handle float literal
-            while (pos + token_len < src.len and (std.ascii.isDigit(src[pos + token_len]))) {
+            var seen_e = false;
+            var seen_neg = false;
+            while (pos + token_len < src.len and (match_identifier_chars(src, pos + token_len) or (seen_e and !seen_neg and src[pos + token_len] == '-'))) {
+                seen_e = seen_e or src[pos + token_len] == 'e';
+                seen_neg = seen_neg or src[pos + token_len] == '-';
                 token_len += 1;
             }
-            // handle float literal
-            const value = std.fmt.parseFloat(f64, src[pos .. pos + token_len]) catch unreachable;
+            const value = try std.fmt.parseFloat(f64, src[pos .. pos + token_len]);
             token = Token{
                 .tag = .literal_float,
                 .pos = pos,
@@ -360,10 +365,10 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
         } else if (c == '0' and next_c == 'x') {
             // handle hexadecimal literal
             token_len += 1;
-            while (pos + token_len < src.len and ((src[pos + token_len] >= 'a' and src[pos + token_len] <= 'f') or (src[pos + token_len] >= 'A' and src[pos + token_len] <= 'F') or (src[pos + token_len] >= '0' and src[pos + token_len] <= '9'))) {
+            while (pos + token_len < src.len and std.ascii.isAlNum(src[pos + token_len])) { // ((src[pos + token_len] >= 'a' and src[pos + token_len] <= 'f') or (src[pos + token_len] >= 'A' and src[pos + token_len] <= 'F') or (src[pos + token_len] >= '0' and src[pos + token_len] <= '9'))) {
                 token_len += 1;
             }
-            const value = std.fmt.parseUnsigned(u128, src[pos .. pos + token_len - 1], 16) catch unreachable;
+            const value = try std.fmt.parseUnsigned(u128, src[pos .. pos + token_len - 1], 0);
             token = Token{
                 .tag = .literal_hex,
                 .pos = pos,
@@ -373,13 +378,27 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
         } else if (c == '0' and next_c == 'b') {
             // handle binary literal
             token_len += 1;
-            while (pos + token_len < src.len and (src[pos + token_len] == '0' or src[pos + token_len] == '1')) {
+            while (pos + token_len < src.len and match_identifier_chars(src, pos + token_len)) { // (src[pos + token_len] == '0' or src[pos + token_len] == '1')) {
                 token_len += 1;
             }
             //std.debug.warn("{s}\n", .{src[pos + 2 .. pos + 2 + token_len]});
-            const value = std.fmt.parseUnsigned(u128, src[pos .. pos + token_len - 1], 0) catch unreachable;
+            const value = try std.fmt.parseUnsigned(u128, src[pos .. pos + token_len - 1], 0);
             token = Token{
                 .tag = .literal_bin,
+                .pos = pos,
+                .len = token_len,
+                .data = Token.Data{ .uint_value = value },
+            };
+        } else if (c == '0' and next_c == 'o') {
+            // handle octal literal
+            token_len += 1;
+            while (pos + token_len < src.len and match_identifier_chars(src, pos + token_len)) { // (src[pos + token_len] == '0' or src[pos + token_len] == '1')) {
+                token_len += 1;
+            }
+            //std.debug.warn("{s}\n", .{src[pos + 2 .. pos + 2 + token_len]});
+            const value = try std.fmt.parseUnsigned(u128, src[pos .. pos + token_len - 1], 0);
+            token = Token{
+                .tag = .literal_oct,
                 .pos = pos,
                 .len = token_len,
                 .data = Token.Data{ .uint_value = value },
@@ -388,14 +407,16 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
             // handle numeric literal (could be int or float)
             var seen_dot = false;
             var seen_e = false;
-            while (pos + token_len < src.len and (std.ascii.isDigit(src[pos + token_len]) or (!seen_dot and src[pos + token_len] == '.') or (!seen_e and src[pos + token_len] == 'e'))) {
+            var seen_neg = false;
+            while (pos + token_len < src.len and (match_identifier_chars(src, pos + token_len) or src[pos + token_len] == '.' or (seen_e and !seen_neg and src[pos + token_len] == '-'))) {
                 seen_dot = seen_dot or src[pos + token_len] == '.';
                 seen_e = seen_e or src[pos + token_len] == 'e';
+                seen_neg = seen_neg or src[pos + token_len] == '-';
                 token_len += 1;
             }
             if (seen_dot or seen_e) {
                 // handle float literal
-                const value = std.fmt.parseFloat(f64, src[pos .. pos + token_len]) catch unreachable;
+                const value = try std.fmt.parseFloat(f64, src[pos .. pos + token_len]);
                 token = Token{
                     .tag = .literal_float,
                     .pos = pos,
@@ -404,7 +425,7 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
                 };
             } else {
                 // handle integer literal
-                const value = std.fmt.parseUnsigned(u128, src[pos .. pos + token_len], 10) catch unreachable;
+                const value = try std.fmt.parseUnsigned(u128, src[pos .. pos + token_len], 10);
                 token = Token{
                     .tag = .literal_int,
                     .pos = pos,
@@ -416,7 +437,7 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
     } else {
         if (std.ascii.isDigit(c)) {
             // handle single-digit number that is probably an error??
-            const value = std.fmt.parseUnsigned(u128, src[pos .. pos + token_len], 10) catch unreachable;
+            const value = try std.fmt.parseUnsigned(u128, src[pos .. pos + token_len], 10);
             token = Token{
                 .tag = .literal_int,
                 .pos = pos,
@@ -429,7 +450,7 @@ fn match_numeric_literal(src: [:0]const u8, pos: usize) ?Token {
     return token;
 }
 
-fn match_string_literal(src: [:0]const u8, pos: usize) ?Token {
+fn match_string_literal(src: [:0]const u8, pos: usize) !?Token {
     if (pos >= src.len or src[pos] != '"') {
         return null;
     }
@@ -438,8 +459,9 @@ fn match_string_literal(src: [:0]const u8, pos: usize) ?Token {
     while (pos + token_len < src.len and src[pos + token_len] != '"') {
         token_len += @as(usize, 1) + @boolToInt(src[pos + token_len] == '\\');
     }
+
     if (src[pos + token_len] != '"') {
-        return null;
+        return error.ReachedEof;
     }
 
     return Token{
@@ -450,7 +472,7 @@ fn match_string_literal(src: [:0]const u8, pos: usize) ?Token {
     };
 }
 
-fn match_char_literal(src: [:0]const u8, pos: usize) ?Token {
+fn match_char_literal(src: [:0]const u8, pos: usize) !?Token {
     if (pos >= src.len or src[pos] != '\'') {
         return null;
     }
@@ -458,6 +480,10 @@ fn match_char_literal(src: [:0]const u8, pos: usize) ?Token {
     var token_len: usize = 1;
     while (pos + token_len < src.len and src[pos + token_len] != '\'') {
         token_len += 1 + @boolToInt(src[pos + token_len] == '\\');
+    }
+
+    if (src[pos + token_len] != '\'') {
+        return error.ReachedEof;
     }
 
     return Token{
@@ -495,6 +521,8 @@ pub const Lexer = struct {
                 pos += 1;
             }
 
+            if (pos >= src.len) break;
+
             if (pos < src.len - 1 and src[pos] == '/' and src[pos + 1] == '/') {
                 while (pos < src.len and src[pos] != '\n') {
                     pos += 1;
@@ -518,21 +546,21 @@ pub const Lexer = struct {
                 break;
             }
 
-            if (match_numeric_literal(src, pos)) |t| {
+            if (try match_numeric_literal(src, pos)) |t| {
                 token.tag = t.tag;
                 token.data = t.data;
                 token_len = t.len;
                 break;
             }
 
-            if (match_string_literal(src, pos)) |t| {
+            if (try match_string_literal(src, pos)) |t| {
                 token.tag = t.tag;
                 token.data = t.data;
                 token_len = t.len;
                 break;
             }
 
-            if (match_char_literal(src, pos)) |t| {
+            if (try match_char_literal(src, pos)) |t| {
                 token.tag = t.tag;
                 token.data = t.data;
                 token_len = t.len;
@@ -623,14 +651,18 @@ test "basic lexing into buffer" {
 fn assert_match(src: [:0]const u8, tags: []const TokenId) !void {
     var l = Lexer{ .src = src };
     var i: usize = 0;
-    while (l.pos <= l.src.len) : (i += 1) {
+
+    while (l.pos < l.src.len and i < tags.len) : (i += 1) {
         const t = try l.get_next_token();
-        if (t.tag != tags[i]) return error.MatchError;
+        if (t.tag != tags[i]) {
+            std.debug.panic("expected {s}, got {s}\n", .{ tags[i], t.tag });
+        }
     }
+    if (i == tags.len) std.debug.panic("reached end of string before finishing\n", .{});
 }
 
 test "lex numeric literals" {
-    const src = "0 1 1 0b10 0x29a 0o400 1.3 0.1 .32";
+    const src = "0 1 1 0b10 0x29a 0o400 1.3 0.1 .32 1e2 9.42e-3";
     const tags = &[_]TokenId{
         .literal_int,
         .literal_int,
@@ -641,6 +673,9 @@ test "lex numeric literals" {
         .literal_float,
         .literal_float,
         .literal_float,
+        .literal_float,
+        .literal_float,
+        .end_of_file,
     };
 
     try assert_match(src, tags[0..]);
