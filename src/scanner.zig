@@ -1,4 +1,8 @@
 //! BAKA SCANNER :x
+//!
+//! TODO:
+//! - multiple variable declarations: `x, y: i32;`
+//! - multiple assignment: `x, y = 1, 2.0;`
 
 const std = @import("std");
 
@@ -136,17 +140,6 @@ const Scanner = struct {
         }
     }
 
-    fn parse_unary(p: *Scanner) Error!Node.Index {
-        const tags = &[3]TokenId{ .op_cond_not, .op_sub, .op_bit_not };
-        if (p.match(tags[0..])) {
-            const op = p.eat();
-            var rexpr = try p.parse_unary();
-            return try p.ast.add_unary_op(op, rexpr);
-        }
-
-        return p.parse_call();
-    }
-
     fn parse_call(p: *Scanner) Error!Node.Index {
         var expr = try p.parse_primary();
 
@@ -178,6 +171,17 @@ const Scanner = struct {
         return expr;
     }
 
+    fn parse_unary(p: *Scanner) Error!Node.Index {
+        const tags = &[3]TokenId{ .op_cond_not, .op_sub, .op_bit_not };
+        if (p.match(tags[0..])) {
+            const op = p.eat();
+            var rexpr = try p.parse_unary();
+            return try p.ast.add_unary_op(op, rexpr);
+        }
+
+        return p.parse_call();
+    }
+
     fn parse_factor(p: *Scanner) Error!Node.Index {
         var expr = try p.parse_unary();
         const tags = &[4]TokenId{ .op_div, .op_mul, .op_mod, .op_at };
@@ -204,12 +208,38 @@ const Scanner = struct {
         return expr;
     }
 
-    fn parse_comparison(p: *Scanner) Error!Node.Index {
+    fn parse_bitshift(p: *Scanner) Error!Node.Index {
         var expr = try p.parse_term();
+        const tags = &[2]TokenId{ .op_bit_lshift, .op_bit_rshift };
+
+        while (p.match(tags[0..])) {
+            const op = p.eat();
+            var rexpr = try p.parse_term();
+            expr = try p.ast.add_binary_op(op, expr, rexpr);
+        }
+
+        return expr;
+    }
+
+    fn parse_bitwise_comparison(p: *Scanner) Error!Node.Index {
+        var expr = try p.parse_bitshift();
+        const tags = &[3]TokenId{ .op_bit_or, .op_bit_xor, .op_ampersand };
+
+        while (p.match(tags[0..])) {
+            const op = p.eat();
+            var rexpr = try p.parse_bitshift();
+            expr = try p.ast.add_binary_op(op, expr, rexpr);
+        }
+
+        return expr;
+    }
+
+    fn parse_comparison(p: *Scanner) Error!Node.Index {
+        var expr = try p.parse_bitwise_comparison();
 
         while (p.match(&[4]TokenId{ .op_cond_lt, .op_cond_leq, .op_cond_gt, .op_cond_geq })) {
             const op = p.eat();
-            var rexpr = try p.parse_term();
+            var rexpr = try p.parse_bitwise_comparison();
             expr = try p.ast.add_binary_op(op, expr, rexpr);
         }
 
@@ -399,9 +429,8 @@ const Scanner = struct {
                     ptr += 1;
                     t = p.eat();
                 }
-                if (t.tag != .identifier) {
-                    return Error.ExpectedIdentifier;
-                }
+                if (t.tag != .identifier) return Error.ExpectedIdentifier;
+
                 var type_ = try p.ast.add_identifier(t);
                 var expr: ?Node.Index = null;
                 t = p.eat();
