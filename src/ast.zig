@@ -324,12 +324,13 @@ pub const Ast = struct {
         const n_refs = self.refs.items.len;
 
         try self.refs.append(member_type);
-        try self.refs.append(if (default_value != null) default_value.? else 0);
+        // try self.refs.append(if (default_value != null) default_value.? else 0);
+        if (default_value != null) try self.refs.append(default_value.?);
 
         try self.nodes.append(Node{
             .tag = .decl_struct_member,
             .token = identifier,
-            .children = Slice.make(n_refs, 2),
+            .children = Slice.make(n_refs, 1 + @intCast(usize, @boolToInt(default_value != null))),
         });
 
         return @intCast(Node.Index, n_nodes);
@@ -410,8 +411,9 @@ pub const Ast = struct {
         const n_nodes = self.nodes.items.len;
         const n_refs = self.refs.items.len;
 
-        try self.refs.append(if (return_type != null) return_type.? else 0);
         try self.refs.append(fn_body);
+        // try self.refs.append(if (return_type != null) return_type.? else 0);
+        if (return_type != null) try self.refs.append(return_type.?);
 
         for (params) |p| {
             try self.refs.append(p);
@@ -420,7 +422,10 @@ pub const Ast = struct {
         try self.nodes.append(Node{
             .tag = .decl_fn,
             .token = identifier,
-            .children = Slice.make(n_refs, 2 + params.len),
+            .children = Slice.make(
+                n_refs,
+                1 + params.len + @intCast(usize, @boolToInt(return_type != null)),
+            ),
         });
 
         return @intCast(Node.Index, n_nodes);
@@ -436,13 +441,14 @@ pub const Ast = struct {
         const n_refs = self.refs.items.len;
 
         try self.refs.append(condition);
-        try self.refs.append(if (update != null) update.? else 0);
         try self.refs.append(block);
+        // try self.refs.append(if (update != null) update.? else 0);
+        if (update != null) try self.refs.append(update.?);
 
         try self.nodes.append(Node{
             .tag = .while_stmt,
             .token = undefined,
-            .children = Slice.make(n_refs, 3),
+            .children = Slice.make(n_refs, 2 + @intCast(usize, @boolToInt(update != null))),
         });
 
         return @intCast(Node.Index, n_nodes);
@@ -459,12 +465,13 @@ pub const Ast = struct {
 
         try self.refs.append(condition);
         try self.refs.append(true_block);
-        try self.refs.append(if (false_block != null) false_block.? else 0);
+        // try self.refs.append(if (false_block != null) false_block.? else 0);
+        if (false_block != null) try self.refs.append(false_block.?);
 
         try self.nodes.append(Node{
             .tag = .if_stmt,
             .token = undefined,
-            .children = Slice.make(n_refs, 3),
+            .children = Slice.make(n_refs, 2 + @intCast(usize, @boolToInt(false_block != null))),
         });
 
         return @intCast(Node.Index, n_nodes);
