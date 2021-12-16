@@ -31,6 +31,7 @@ pub const Error = error{
     ExpectedVarDefn,
     ExpectedSemicolon,
     ExpectedColon,
+    ExpectedPipe,
     ExpectedBlock,
     ExpectedStatement,
     UnknownError,
@@ -49,8 +50,8 @@ const Scanner = struct {
 
     fn linecol(self: *Scanner) []const u8 {
         const t = self.tokens[self.token_i];
-        _ = std.fmt.bufPrint(self._lcstr[0..], "{}:{}", .{ t.line, t.col }) catch unreachable;
-        return self._lcstr[0..];
+        const s = std.fmt.bufPrint(self._lcstr[0..], "{}:{}", .{ t.line + 1, t.col + 1 }) catch unreachable;
+        return s;
     }
 
     fn log_error(self: *Scanner, comptime fmt: []const u8, args: anytype) void {
@@ -96,7 +97,9 @@ const Scanner = struct {
     }
 
     fn peek(p: *Scanner, offset: usize) Token {
-        return p.tokens[if (p.token_i + offset < p.tokens.len - 1) p.token_i + offset else p.tokens.len - 1];
+        const offs = p.token_i + offset;
+        const clamp_offs = if (offs < p.tokens.len - 1) offs else p.tokens.len - 1;
+        return p.tokens[offs];
     }
 
     fn match_sequence(p: *Scanner, tags: []TokenId) bool {
@@ -107,6 +110,23 @@ const Scanner = struct {
         }
         return true;
     }
+
+    fn parse_type_prefix(p: *Scanner) Error!Node.Index {
+        const tags = &[_]TokenId{ .sep_bracket_l, .op_mul, .op_question };
+        while (p.match(tags[0..])) {
+            const op = p.eat();
+            switch (op) {
+                .sep_bracket_l => {},
+                .op_mul => {},
+                .op_question => {},
+                else => unreachable,
+            }
+            var rexpr = try p.parse_type_prefix();
+            expr = try p.ast.add_type(op, expr, rexpr);
+        }
+    }
+
+    fn parse_type_expr(p: *Scanner) Error!Node.Index {}
 
     fn parse_primary(p: *Scanner) Error!Node.Index {
         const t = p.peek(0);
@@ -143,28 +163,30 @@ const Scanner = struct {
     fn parse_call(p: *Scanner) Error!Node.Index {
         var expr = try p.parse_primary();
 
-        var t = p.peek(0);
+        const tags = &[2]TokenId{ .sep_paren_l, .sep_dot };
 
-        while (true) : (t = p.peek(0)) {
-            if (t.tag == .sep_paren_l) {
-                t = p.eat();
-                var args = std.ArrayList(Node.Index).init(p.allocator);
-                if (t.tag != .sep_paren_r) {
-                    try args.append(try p.parse_expr());
-                    t = p.peek(0);
-                    while (t.tag == .sep_comma) {
-                        t = p.eat();
+        var t = p.peek(0);
+        std.debug.warn("{}\n", .{t});
+        while (p.match(tags[0..])) {
+            t = p.eat();
+            switch (t.tag) {
+                .sep_paren_l => {
+                    var args = std.ArrayList(Node.Index).init(p.allocator);
+                    if (p.peek(0).tag != .sep_paren_r) {
                         try args.append(try p.parse_expr());
+                        while (p.peek(0).tag == .sep_comma) {
+                            t = p.eat();
+                            try args.append(try p.parse_expr());
+                        }
                     }
                     _ = try p.consume(.sep_paren_r, Error.ExpectedParenthesis);
-                }
-                expr = try p.ast.add_func_call(expr, args.items);
-            } else if (t.tag == .sep_dot) {
-                t = p.eat();
-                const id = try p.consume(.identifier, Error.ExpectedIdentifier);
-                expr = try p.ast.add_member_access(expr, id);
-            } else {
-                break;
+                    expr = try p.ast.add_func_call(expr, args.items);
+                },
+                .sep_dot => {
+                    const id = try p.consume(.identifier, Error.ExpectedIdentifier);
+                    expr = try p.ast.add_member_access(expr, id);
+                },
+                else => break,
             }
         }
 
@@ -282,8 +304,8 @@ const Scanner = struct {
         return expr;
     }
 
-    fn parse_assignment(p: *Scanner) Error!Node.Index {
-        var expr = try p.parse_or();
+    fn parse_assignment_expr(p: *Scanner) Error!Node.Index {
+        var expr = try p.parse_expr();
 
         switch (p.peek(0).tag) {
             .op_assign,
@@ -300,7 +322,7 @@ const Scanner = struct {
             .op_bit_rshift_inline,
             => {
                 const op = p.eat();
-                const value = try p.parse_or();
+                const value = try p.parse_expr();
 
                 // if (p.ast.nodes[expr].tag != .uhh) return Error.Wtf;
 
@@ -311,7 +333,7 @@ const Scanner = struct {
     }
 
     fn parse_expr(p: *Scanner) Error!Node.Index {
-        return try p.parse_assignment();
+        return try p.parse_or();
     }
 
     fn parse_func_decl(p: *Scanner, id: Token) Error!Node.Index {
@@ -441,7 +463,6 @@ const Scanner = struct {
 
                 const is_const = t.tag == .sep_colon;
                 if (t.tag == .op_assign or t.tag == .sep_colon) {
-                    _ = p.eat();
                     expr = try p.parse_expr();
                 } else {
                     return Error.ExpectedVarDefn;
@@ -557,22 +578,52 @@ const Scanner = struct {
         return try p.ast.add_if_block(condition, true_block, false_block);
     }
 
+    /// parse a for loop
+    ///
+    /// <for_loop> ::= "for" "(" <expression> ")" <ptr_idx_payload>? ( <statement> ";" | <block> )
+    fn parse_for_statement(p: *Scanner) Error!Node.Index {
+        _ = try p.consume(.kwd_for, Error.UnexpectedToken);
+        _ = try p.consume(.sep_paren_l, Error.ExpectedParenthesis);
+        const condition = try p.parse_expr() catch Error.ExpectedExpression;
+        _ = try p.consume(.sep_paren_r, Error.ExpectedParenthesis);
+    }
+
     /// parse a while loop
     ///
-    /// <while_loop> ::= "while" "(" <expression> ")" ( ":" "(" <expression> ")" )? ( <statement> | <block> )
+    /// <while_loop> ::= "while" "(" <expression> ")" <ptr_payload>? <while_update>? ( <statement> ";" | <block> )
+    /// <while_update> :: ":" "(" <assign_expr> ")"
     fn parse_while_statement(p: *Scanner) Error!Node.Index {
         _ = try p.consume(.kwd_while, Error.UnexpectedToken);
         _ = try p.consume(.sep_paren_l, Error.ExpectedParenthesis);
         const condition = try p.parse_expr() catch Error.ExpectedExpression;
         _ = try p.consume(.sep_paren_r, Error.ExpectedParenthesis);
 
-        // TODO(mia): implement update statement
-        if (p.peek(0).tag == .sep_colon) return Error.NotImplemented;
+        // TODO: use ptr
+        var payload: ?Node.Index = null;
+        var ptr: usize = 0;
+        if (p.peek(0).tag == .op_bit_or) {
+            _ = p.eat();
+            if (p.peek(0).tag == .op_mul) {
+                ptr += 1;
+                _ = p.eat();
+            }
+            const id = try p.consume(.identifier, Error.ExpectedIdentifier);
+            _ = try p.consume(.op_bit_or, Error.ExpectedPipe);
+            payload = try p.ast.add_auto_var_decl(id, condition, false);
+        }
+
+        var update_expr: ?Node.Index = null;
+        if (p.peek(0).tag == .sep_colon) {
+            _ = p.eat();
+            _ = try p.consume(.sep_paren_l, Error.ExpectedParenthesis);
+            update_expr = try p.parse_assignment_expr() catch Error.ExpectedExpression;
+            _ = try p.consume(.sep_paren_r, Error.ExpectedParenthesis);
+        }
 
         // TODO(mia): this could just be a line statement
         const block = try p.parse_compound_statement();
 
-        return try p.ast.add_while_loop(condition, null, block);
+        return try p.ast.add_while_loop(condition, update_expr, block);
     }
 
     /// parse a statement
@@ -594,7 +645,7 @@ const Scanner = struct {
                     },
                     else => {
                         // last chance to parse an expression before peacing out
-                        const expr = p.parse_expr() catch |err| return Error.ExpectedStatement;
+                        const expr = p.parse_assignment_expr() catch |err| return Error.ExpectedStatement;
                         _ = try p.consume(.sep_semicolon, Error.ExpectedSemicolon);
                         return expr;
                     },
@@ -619,10 +670,10 @@ const Scanner = struct {
                 _ = try p.consume(.sep_semicolon, Error.ExpectedSemicolon);
                 return try p.ast.add_statement(.return_stmt, expr);
             },
+            .sep_brace_l => return try p.parse_compound_statement(),
             .kwd_switch, // => {},
             .kwd_for,
             => return Error.NotImplemented,
-            .sep_brace_l => return try p.parse_compound_statement(),
             else => return Error.ExpectedStatement,
         }
     }

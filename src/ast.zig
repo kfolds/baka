@@ -271,7 +271,7 @@ pub const Ast = struct {
     pub fn add_var_decl(
         self: *Ast,
         identifier: Token,
-        var_type: ?Node.Index,
+        var_type: Node.Index,
         expr: ?Node.Index,
         is_const: bool,
     ) !Node.Index {
@@ -282,7 +282,7 @@ pub const Ast = struct {
             return Error.InvalidArgs;
         }
 
-        try self.refs.append(if (var_type != null) var_type.? else 0);
+        try self.refs.append(var_type);
         try self.refs.append(if (expr != null) expr.? else 0);
 
         try self.nodes.append(Node{

@@ -83,6 +83,7 @@ pub const TokenId = enum(u16) {
     op_bit_and_inline,
     op_bit_or_inline,
     op_bit_xor_inline,
+    op_question,
 
     sep_arrow,
     sep_big_arrow,
@@ -320,6 +321,9 @@ fn match_op_or_sep(src: [:0]const u8, pos: usize) ?Token {
         ',' => {
             t.tag = .sep_comma;
         },
+        '?' => {
+            t.tag = .op_question;
+        },
         '\x00' => {
             t.tag = .end_of_file;
         },
@@ -421,8 +425,8 @@ fn match_string_or_char_literal(src: [:0]const u8, pos: usize) !?Token {
 
 fn match_identifier_or_kwd(src: [:0]const u8, pos: usize) ?Token {
     // zig fmt: off
-    if (
-        (pos >= src.len or (!std.ascii.isAlpha(src[pos]) and src[pos] != '_'))
+    if (pos >= src.len
+        or (!std.ascii.isAlpha(src[pos]) and src[pos] != '_' and src[pos] != '@')
         or (pos + 1 < src.len and src[pos] == '@' and !std.ascii.isAlpha(src[pos + 1])) 
     ) return null;
     // zig fmt: on
@@ -483,6 +487,7 @@ pub const Lexer = struct {
                 line += 1;
                 col = 0;
                 pos += 1;
+                continue;
             }
 
             if (pos >= src.len) break;

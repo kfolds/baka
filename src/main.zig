@@ -28,7 +28,10 @@ pub fn main() anyerror!void {
     switch (info) {
         .compile => |data| {
             for (data.files) |f, i| {
-                _ = try unit.compile(allocator, f);
+                _ = unit.compile(allocator, f) catch |err| {
+                    std.debug.warn("an error occurred while compiling \"{s}\": {}\n", .{ f, err });
+                    return;
+                };
             }
         },
         else => return,
