@@ -17,8 +17,8 @@ pub const IndexedSlice = struct {
 };
 
 /// read a file into a buffer and return it. caller must free allocated memory.
-pub fn read_file(allocator: *mem.Allocator, fname: []const u8) ![:0]const u8 {
-    const f = try std.fs.cwd().openFile(fname, .{ .read = true });
+pub fn read_file(allocator: mem.Allocator, fname: []const u8) ![:0]const u8 {
+    const f = try std.fs.cwd().openFile(fname, .{ .mode = .read_only });
     defer f.close();
 
     const fsize = try f.getEndPos();

@@ -3,11 +3,11 @@ const unit = @import("unit.zig");
 const CompileInfo = unit.CompileInfo;
 
 pub fn usage() void {
-    std.debug.warn("usage text\n", .{});
+    std.debug.print("usage text\n", .{});
 }
 
 pub fn help() void {
-    std.debug.warn("help text\n", .{});
+    std.debug.print("help text\n", .{});
 }
 
 const ArgType = enum {
@@ -48,7 +48,7 @@ const JobData = union(JobType) {
     compile: CompileInfo,
 };
 
-pub fn parse_command(allocator: *std.mem.Allocator, args: []const []u8) !JobData {
+pub fn parse_command(allocator: std.mem.Allocator, args: []const []u8) !JobData {
     const cmd = args[1];
     if (std.mem.eql(u8, cmd, "help")) {
         help();
@@ -61,12 +61,12 @@ pub fn parse_command(allocator: *std.mem.Allocator, args: []const []u8) !JobData
         const build_info = try parse_compile_args(allocator, args);
         return JobData{ .compile = build_info };
     } else {
-        std.debug.warn("error: invalid command \"{s}\"\n", .{cmd});
+        std.debug.print("error: invalid command \"{s}\"\n", .{cmd});
         return error.InvalidCommand;
     }
 }
 
-pub fn parse_compile_args(allocator: *std.mem.Allocator, args: []const []u8) !CompileInfo {
+pub fn parse_compile_args(allocator: std.mem.Allocator, args: []const []u8) !CompileInfo {
     var info = CompileInfo{
         .files = undefined,
         .link_libraries = undefined,
@@ -89,7 +89,7 @@ pub fn parse_compile_args(allocator: *std.mem.Allocator, args: []const []u8) !Co
         }
 
         if (arg == null) {
-            std.debug.warn("error: unrecognized argument \"{s}\"\n", .{args[i]});
+            std.debug.print("error: unrecognized argument \"{s}\"\n", .{args[i]});
             return error.UnrecognizedArgument;
         }
 

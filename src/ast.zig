@@ -101,7 +101,7 @@ pub const Ast = struct {
     nodes: NodeList,
     refs: RefList,
 
-    pub fn init(allocator: *std.mem.Allocator) Ast {
+    pub fn init(allocator: std.mem.Allocator) Ast {
         const ast = Ast{
             .nodes = std.ArrayList(Node).init(allocator),
             .refs = std.ArrayList(Node.Index).init(allocator),
@@ -407,6 +407,9 @@ pub const Ast = struct {
         is_extern: bool,
         is_inline: bool,
     ) !Node.Index {
+        // TODO(mia): uwu don't do this
+        _ = is_extern;
+        _ = is_inline;
         const n_nodes = self.nodes.items.len;
         const n_refs = self.refs.items.len;
 
@@ -471,8 +474,11 @@ pub const Ast = struct {
     }
 
     pub fn add_switch(self: *Ast, condition: Node.Index, prongs: []Node.Index) !Node.Index {
-        const n_nodes = self.nodes.items.len;
-        const n_refs = self.refs.items.len;
+        _ = self;
+        _ = condition;
+        _ = prongs;
+        // const n_nodes = self.nodes.items.len;
+        // const n_refs = self.refs.items.len;
         return 0;
     }
 
@@ -513,9 +519,9 @@ pub const Ast = struct {
     pub fn print(self: *Ast) void {
         var root = self.nodes.items[self.nodes.items.len - 1];
         log.info("printing AST:", .{});
-        std.debug.warn("{}: {}", .{ self.nodes.items.len - 1, root.tag });
+        std.debug.print("{}: {}", .{ self.nodes.items.len - 1, root.tag });
         self._print_level(1, &root);
-        std.debug.warn("\n", .{});
+        std.debug.print("\n", .{});
     }
 
     fn _print_level(self: *Ast, level: usize, node: *Node) void {
@@ -525,9 +531,9 @@ pub const Ast = struct {
             if (c == self.nodes.items.len) continue;
             var i: usize = 0;
             while (i < level) : (i += 1) {
-                std.debug.warn(" ", .{});
+                std.debug.print(" ", .{});
             }
-            std.debug.warn("{}: {} -> [ ]\n", .{ c, self.nodes.items[c].tag });
+            std.debug.print("{}: {} -> [ ]\n", .{ c, self.nodes.items[c].tag });
             var next_node = self.nodes.items[c];
             self._print_level(level + 1, &next_node);
         }
@@ -536,7 +542,7 @@ pub const Ast = struct {
 
 test "init and add" {
     var allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = &allocator.allocator;
+    const gpa = allocator.allocator();
     var ast = Ast.init(gpa);
     defer ast.deinit();
     // TODO(mia): add

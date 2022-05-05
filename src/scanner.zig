@@ -38,7 +38,7 @@ const Scanner = struct {
     tokens: []Token,
     token_i: usize,
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     ast: _ast.Ast,
 
     _lcstr: [512]u8 = undefined,
@@ -56,7 +56,7 @@ const Scanner = struct {
         log.err("{s}", .{msg});
     }
 
-    pub fn init(allocator: *std.mem.Allocator, tokens: []Token) Scanner {
+    pub fn init(allocator: std.mem.Allocator, tokens: []Token) Scanner {
         return Scanner{
             .tokens = tokens,
             .token_i = 0,
@@ -565,7 +565,7 @@ const Scanner = struct {
                     },
                     else => {
                         // last chance to parse an expression before peacing out
-                        const expr = p.parse_expr() catch |err| return Error.ExpectedStatement;
+                        const expr = p.parse_expr() catch return Error.ExpectedStatement;
                         _ = try p.consume(.sep_semicolon, Error.ExpectedSemicolon);
                         return expr;
                     },
@@ -613,9 +613,10 @@ const Scanner = struct {
     }
 };
 
-pub fn parse(allocator: *std.mem.Allocator, tokens: []Token) Error!_ast.Ast {
+pub fn parse(allocator: std.mem.Allocator, tokens: []Token) Error!_ast.Ast {
     var p = Scanner.init(allocator, tokens);
-    const root = p.parse_root_decl() catch |err| {
+    // TODO(mia): do something with this?
+    _ = p.parse_root_decl() catch |err| {
         log.err("error {s}: {}\n", .{ p.linecol(), err });
         log.err("  got: {}\n", .{p.peek(0).tag});
         return err;
@@ -628,7 +629,7 @@ pub fn parse(allocator: *std.mem.Allocator, tokens: []Token) Error!_ast.Ast {
 
 test "simple parse" {
     var allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = &allocator.allocator;
+    const gpa = allocator.allocator();
     const src =
         \\ foo :: (bar: T) -> T {
         \\     i := bar * 2;

@@ -35,11 +35,11 @@ pub const Module = struct {
     ast: _ast.Ast,
 };
 
-pub fn compile(allocator: *std.mem.Allocator, file: []const u8) anyerror!Module {
+pub fn compile(allocator: std.mem.Allocator, file: []const u8) anyerror!Module {
     var module: Module = undefined;
     module.filename = file;
     module.src = read_file(allocator, file) catch |err| {
-        std.debug.warn("error: could not read file \"{s}\"; reason {}\n", .{ file, err });
+        std.debug.print("error: could not read file \"{s}\"; reason {}\n", .{ file, err });
         return err;
     };
     module.tokens = try lexer.tokenize(allocator, module.src);

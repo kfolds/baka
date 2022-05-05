@@ -590,7 +590,7 @@ pub const Lexer = struct {
     }
 };
 
-pub fn tokenize(allocator: *Allocator, src: [:0]const u8) ![]Token {
+pub fn tokenize(allocator: Allocator, src: [:0]const u8) ![]Token {
     var tokens = std.ArrayList(Token).init(allocator);
     errdefer tokens.deinit();
 
@@ -624,7 +624,7 @@ test "basic lexing" {
     ;
     var l = Lexer{ .src = src };
     while (l.pos <= l.src.len) {
-        const t = try l.get_next_token();
+        _ = try l.get_next_token();
     }
 }
 
@@ -643,9 +643,9 @@ test "basic lexing into buffer" {
         \\}
     ;
     var allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = &allocator.allocator;
+    const gpa = allocator.allocator();
 
-    const tokens = try tokenize(gpa, src);
+    _ = try tokenize(gpa, src);
 }
 
 fn assert_match(src: [:0]const u8, tags: []const TokenId) !void {

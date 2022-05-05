@@ -10,7 +10,7 @@ const args = @import("args.zig");
 pub fn main() anyerror!void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    var allocator = &arena.allocator;
+    var allocator = arena.allocator();
 
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
@@ -21,13 +21,13 @@ pub fn main() anyerror!void {
     }
 
     const info = args.parse_command(allocator, argv) catch |err| {
-        if (err != error.Canceled) std.debug.warn("error: failed to parse arguments\n", .{});
+        if (err != error.Canceled) std.debug.print("error: failed to parse arguments\n", .{});
         return;
     };
 
     switch (info) {
         .compile => |data| {
-            for (data.files) |f, i| {
+            for (data.files) |f| {
                 _ = try unit.compile(allocator, f);
             }
         },
